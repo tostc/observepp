@@ -1,0 +1,180 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2020 Christian Tost
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+#ifndef OBSERVABLEVALUE
+#define OBSERVABLEVALUE
+
+#include <memory>
+#include <observepp/observable>
+#include <type_traits>
+
+namespace observepp
+{
+    template <class T, class Allocator = std::allocator<T>>
+    class ObservableValue : public Observable<T>
+    {   
+        public:
+            using allocator_type = Allocator;
+
+            using value_type = typename Observable<T>::value_type;
+            using reference = typename Observable<T>::reference;
+            using const_reference = typename Observable<T>::const_reference;
+            using pointer = typename Observable<T>::pointer;
+            using const_pointer = typename Observable<T>::const_pointer;
+            using value_changed_fn = typename Observable<T>::value_changed_fn;
+
+            ObservableValue() : ObservableValue(Allocator()) { }
+            ObservableValue(const_reference value) : ObservableValue(value, Allocator()) { }
+            ObservableValue(const_reference value, const Allocator &alloc) : ObservableValue(Allocator())
+            {
+                m_Value = new((void *)m_Value) T(value);
+            }
+
+            ObservableValue(const Allocator &alloc) : m_Alloc(alloc)
+            {
+                m_Value = m_Alloc.allocate(1, 0);
+                m_Value = new((void *)m_Value) T();
+            }
+
+            ObservableValue(const ObservableValue &obj) : Observable<T>(obj)
+            {
+                m_Alloc = obj.m_Alloc;
+                m_Value = m_Alloc.allocate(1, 0);
+                m_Value = new((void *)m_Value) T(*obj.m_Value);
+            }
+
+            /**
+             * @brief Overloads the default class method to set the value for the new observer.
+             */
+            size_t AddObserver(value_changed_fn fn) override
+            {
+                size_t ret = Observable<T>::AddObserver(fn);
+                fn(*m_Value);
+
+                return ret;
+            }
+
+            operator reference()
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                return *m_Value;
+            }
+
+            template<class cast>
+            operator cast()
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                return (cast)(*m_Value);
+            }
+
+            template <typename U = T>
+            typename std::enable_if<std::is_pointer<U>::value, pointer>::type operator->()
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                return *m_Value;
+            }
+
+            template <typename U = T>
+            typename std::enable_if<!std::is_pointer<U>::value, pointer>::type operator->()
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                return m_Value;
+            }
+
+            typename std::remove_pointer<T>::type& operator[](size_t Index)
+            {
+                return (*m_Value)[Index];
+            }
+
+            ObservableValue &operator=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                m_Value = new((void *)m_Value) T(value);
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator+=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) += value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator-=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) -= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator*=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) *= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator/=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) /= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+        private:
+            Allocator m_Alloc;
+            T *m_Value;
+
+            std::mutex m_Lock;
+    };
+
+    // Signed Integers
+    using ObservableChar = ObservableValue<char>;  
+    using ObservableShort = ObservableValue<short>;   
+    using ObservableInt = ObservableValue<int>;    
+    using ObservableLong = ObservableValue<long>;   
+
+    // Unsigned Integers
+    using ObservableUChar = ObservableValue<unsigned char>;  
+    using ObservableUShort = ObservableValue<unsigned short>;   
+    using ObservableUInt = ObservableValue<unsigned int>;    
+    using ObservableULong = ObservableValue<unsigned long>;   
+
+    // Floating points
+    using ObservableFloat = ObservableValue<float>;    
+    using ObservableDouble = ObservableValue<double>;     
+} // namespace observepp
+
+
+#endif //OBSERVABLEVALUE
