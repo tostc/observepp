@@ -53,14 +53,14 @@ namespace observepp
 
             ObservableValue(const Allocator &alloc) : m_Alloc(alloc)
             {
-                m_Value = m_Alloc.allocate(1, 0);
+                m_Value = m_Alloc.allocate(1);
                 m_Value = new((void *)m_Value) T();
             }
 
             ObservableValue(const ObservableValue &obj) : Observable<T>(obj)
             {
                 m_Alloc = obj.m_Alloc;
-                m_Value = m_Alloc.allocate(1, 0);
+                m_Value = m_Alloc.allocate(1);
                 m_Value = new((void *)m_Value) T(*obj.m_Value);
             }
 
@@ -110,6 +110,8 @@ namespace observepp
             ObservableValue &operator=(const_reference value)
             {
                 std::lock_guard<std::mutex> lock(m_Lock);
+                ((T)*m_Value).~T();
+
                 m_Value = new((void *)m_Value) T(value);
                 Observable<T>::OnValueChanged(*m_Value);
 
@@ -152,12 +154,53 @@ namespace observepp
                 return *this;
             }
 
+            ObservableValue &operator++()
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value)++;
+                Observable<T>::OnValueChanged(*m_Value);
+                return *this;
+            }
+
+            ObservableValue &operator--()
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value)--;
+                Observable<T>::OnValueChanged(*m_Value);
+                return *this;
+            }
+
+            ObservableValue &operator++(int)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value)++;
+                Observable<T>::OnValueChanged(*m_Value);
+                return *this;
+            }
+
+            ObservableValue &operator--(int)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value)--;
+                Observable<T>::OnValueChanged(*m_Value);
+                return *this;
+            }
+
+            virtual ~ObservableValue()
+            {
+                m_Value->~T();
+                m_Alloc.deallocate(m_Value, 1);
+            }
+
         private:
             Allocator m_Alloc;
             T *m_Value;
 
             std::mutex m_Lock;
     };
+
+    // Bool
+    using ObservableBool = ObservableValue<bool>;  
 
     // Signed Integers
     using ObservableChar = ObservableValue<char>;  
