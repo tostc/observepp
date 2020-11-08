@@ -154,6 +154,60 @@ namespace observepp
                 return *this;
             }
 
+            ObservableValue &operator%=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) %= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator>>=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) >>= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator<<=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) <<= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator&=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) &= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator^=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) ^= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
+            ObservableValue &operator|=(const_reference value)
+            {
+                std::lock_guard<std::mutex> lock(m_Lock);
+                (*m_Value) |= value;
+                Observable<T>::OnValueChanged(*m_Value);
+
+                return *this;
+            }
+
             ObservableValue &operator++()
             {
                 std::lock_guard<std::mutex> lock(m_Lock);
